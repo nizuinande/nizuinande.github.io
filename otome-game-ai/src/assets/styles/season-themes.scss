@@ -1,0 +1,14 @@
+// 季节主题光标样式
+$season-cursors: (
+  'spring': url('/images/cursors/sakura.svg') 12 12,
+  'summer': url('/images/cursors/palm.svg') 16 4,
+  'autumn': url('/images/cursors/maple.svg') 12 12,
+  'winter': url('/images/cursors/snowflake.svg') 12 12
+);
+
+@each $season, $cursor in $season-cursors {
+  [data-theme='#{$season}'] {
+    --theme-cursor: #{$cursor};
+    cursor: var(--theme-cursor), auto;
+  }
+}

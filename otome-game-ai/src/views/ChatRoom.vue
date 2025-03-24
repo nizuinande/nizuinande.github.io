@@ -6,8 +6,7 @@
       <h2 class="character-name">{{ character.name }}</h2>
     </div>
     <div class="message-area" ref="messageContainer">
-      <div id="bg" class="ChatRoombackground"></div>
-
+      <canvas id="season-canvas" style="position: fixed; top: 80px; left: 0; z-index: 0; pointer-events: none;" />
       <div v-for="(msg, index) in messages" :key="index" class="message-bubble" :class="{ 'user-message': msg.isUser }">
         <div class="message-content">{{ msg.content }}</div>
         <div class="message-time">{{ msg.time }}</div>
@@ -29,19 +28,32 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { initSeasonParticles } from '@/utils/seasonParticles'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { chatCompletion } from '@/services/api.js'
-import * as THREE from 'three'
 
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const character = ref({})
+const messages = ref([])
+const inputMessage = ref('')
+const messageContainer = ref(null)
+
+onUnmounted(() => {
+})
+const isLoading = ref(false)
+let particlesInstance = null
 
 onMounted(() => {
-  initThreeScene();
+  // 初始化季节背景
+  particlesInstance = initSeasonParticles(document.getElementById('season-canvas'), {
+    canvas: document.getElementById('season-canvas'),
+    theme: store.currentTheme,
+    particleType: store.currentTheme === 'spring' ? 'sakura' : 'leaf'
+  })
   const characterName = route.query.character
   if (characterName) {
     const foundCharacter = store.characters.find(c => c.name === characterName)
@@ -53,60 +65,6 @@ onMounted(() => {
     }
   }
 })
-// 初始化three.js场景
-const initThreeScene = () => {
-  const container = document.getElementById('bg')  // 修改为使用bg元素
-
-  const scene = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000)
-  const renderer = new THREE.WebGLRenderer({ alpha: true })
-  renderer.setSize(container.clientWidth, container.clientHeight)
-  container.appendChild(renderer.domElement)
-
-  // 创建花瓣几何体
-  const petalGeometry = new THREE.PlaneGeometry(0.2, 0.4)
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xff9eb5,
-    transparent: true,
-    opacity: 0.7,
-    side: THREE.DoubleSide
-  })
-
-  const petals = []
-  const petalCount = 200
-
-  for (let i = 0; i < petalCount; i++) {
-    const petal = new THREE.Mesh(petalGeometry, material)
-    petal.position.x = (Math.random() - 0.5) * 100
-    petal.position.y = Math.random() * 50
-    petal.position.z = (Math.random() - 0.5) * 100
-    petal.rotation.z = Math.random() * Math.PI * 2
-    petals.push(petal)
-    scene.add(petal)
-  }
-
-  camera.position.z = 30
-
-  const animate = () => {
-    requestAnimationFrame(animate)
-
-    petals.forEach(petal => {
-      petal.position.y -= 0.1
-      petal.rotation.z += 0.01
-      if (petal.position.y < -25) {
-        petal.position.y = 25
-      }
-    })
-
-    renderer.render(scene, camera)
-  }
-
-  animate()
-}
-const messages = ref([])
-const inputMessage = ref('')
-const messageContainer = ref(null)
-const isLoading = ref(false)
 
 const formatTime = (date) => {
   return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`
@@ -208,15 +166,15 @@ watch(messages, () => {
     justify-content: center;
     gap: 16px;
     padding: 0 20px;
-    background: linear-gradient(145deg, #ffebf3, #ffeef6);
-    box-shadow: 0 2px 8px rgba(255, 158, 181, 0.2);
-    border-bottom: 1px solid #ffd1e0;
+    background: linear-gradient(145deg, var(--theme-gradient-from), var(--theme-gradient-to));
+    box-shadow: 0 2px 8px var(--theme-primary-color);
+    border-bottom: 1px solid var(--theme-secondary-color);
     position: relative;
 
     .back-button {
       position: absolute;
       left: 20px;
-      color: #e83f6f;
+      color: #ff5c8d;
       font-size: 24px;
       padding: 8px;
       transition: all 0.3s ease;
@@ -229,7 +187,7 @@ watch(messages, () => {
     }
 
     .character-avatar {
-      border: 2px solid #ff9eb5;
+      border: 2px solid var(--theme-primary-color);
       box-shadow: 0 2px 8px rgba(255, 158, 181, 0.3);
       transition: all 0.3s ease;
 
@@ -254,21 +212,18 @@ watch(messages, () => {
   }
 }
 
-::v-deep .el-input__wrapper {
-
-  height: 40px;
-  box-shadow: 0 0 0 0px var(--el-input-border-color, var(--el-border-color)) inset;
-}
-
-::v-deep .el-input__wrapper.is-focus {
-  box-shadow: 0 0 0 0px var(--el-input-focus-border-color) inset;
+::v-deep .el-input__wrapper:focus-within {
+  box-shadow: 0 0 0 3px var(--theme-primary-color),
+    0 0 20px var(--theme-primary-color);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .message-area {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
-  background: linear-gradient(180deg, #fff5f9 0%, #ffeef6 100%);
+  background: linear-gradient(180deg, var(--theme-gradient-from) 0%, var(--theme-gradient-to) 100%);
+  z-index: 1;
   position: relative;
   overflow: hidden;
 
@@ -341,8 +296,8 @@ watch(messages, () => {
 .user-message {
   margin-left: auto;
   margin-right: 10px;
-  background: #ffebf3;
-  border: 1px solid #ffd1e0;
+  background: rgba(var(--theme-primary-color), 0.15);
+  border: 1px solid var(--theme-secondary-color);
   white-space: pre-wrap;
   letter-spacing: 1px;
 
@@ -378,34 +333,23 @@ watch(messages, () => {
 }
 
 .input-area {
-  border-top: 1px solid #ffd1e0;
-  padding: 10px;
-
-  @media (max-width: 768px) {
-    padding: 8px;
-
-    :deep(.el-input-group__append) {
-      padding: 0 12px;
-    }
-  }
-
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 -2px 8px rgba(255, 183, 213, 0.2);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 16px 20px;
+  flex-shrink: 0;
 }
 
 .message-input {
   border-radius: 25px;
   overflow: hidden;
-  border: 1px solid #ffd1e0;
-  transition: all 0.3s ease;
-  background: #fff5f9;
-  box-shadow: 0 2px 8px rgba(255, 183, 213, 0.2);
+  border: 1px solid var(--theme-secondary-color);
+  background: linear-gradient(145deg, rgba(var(--theme-primary-color), 0.1), rgba(var(--theme-secondary-color), 0.05));
 }
 
 .message-input:hover {
-  border-color: #ff9eb5;
-  box-shadow: 0 0 12px rgba(255, 158, 181, 0.4);
-  transform: scale(1.02);
+  border-color: var(--theme-primary-color);
+  background: linear-gradient(145deg, rgba(var(--theme-primary-color), 0.2), rgba(var(--theme-secondary-color), 0.1));
 }
 
 .message-input :deep(.el-input__inner) {
@@ -431,18 +375,44 @@ watch(messages, () => {
 }
 
 .message-input :deep(.el-input-group__append) {
-  border-radius: 0 25px 25px 0 !important;
-  background: linear-gradient(145deg, #ff9eb5, #ff7aa2);
-  border: none;
-  color: white;
-  transition: all 0.3s ease;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+  border-radius: 0 28px 28px 0 !important;
+  background: linear-gradient(145deg, var(--theme-primary-color), var(--theme-secondary-color));
+  padding: 0 24px;
 }
 
-.message-input :deep(.el-input-group__append:hover) {
-  background: linear-gradient(145deg, #ff7aa2, #ff5c8d);
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(255, 158, 181, 0.4);
+@media (max-width: 768px) {
+  ::v-deep .el-input__wrapper {
+    height: 52px;
+  }
+
+  .message-input :deep(.el-input-group__append) {
+    padding: 0 18px;
+  }
+}
+
+.message-input :deep(.el-button) {
+  height: 42px !important;
+  border-radius: 28px !important;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+@media (hover: hover) {
+  .message-input :deep(.el-button:hover) {
+    background: linear-gradient(135deg,
+        var(--theme-primary-color),
+        var(--theme-secondary-color)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  ::v-deep .el-input__wrapper {
+    padding: 0 16px;
+  }
+
+  .message-input :deep(.el-button) {
+    min-width: 80px;
+    padding: 0 20px;
+  }
 }
 </style>

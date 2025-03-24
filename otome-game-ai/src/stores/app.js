@@ -1,8 +1,15 @@
 import { defineStore } from 'pinia'
-
+// 自动季节检测
+function detectSeason () {
+  const month = new Date().getMonth() + 1
+  if (month >= 3 && month <= 5) return 'spring'
+  if (month >= 6 && month <= 8) return 'summer'
+  if (month >= 9 && month <= 11) return 'autumn'
+  return 'winter'
+}
 export const useAppStore = defineStore('app', {
   state: () => ({
-    theme: 'light',
+    currentTheme: detectSeason(),
     characters: [
       {
         name: '李泽言',
@@ -35,6 +42,9 @@ export const useAppStore = defineStore('app', {
     isPlaying: false
   }),
   actions: {
+    updateTheme (season) {
+      this.currentTheme = season
+    },
     selectCharacter (char) {
       this.selectedCharacter = char
       this.trainingRecords = []

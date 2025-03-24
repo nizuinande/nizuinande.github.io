@@ -7,7 +7,7 @@
       </div>
       <div v-if="isLoading" class="message ai-message loading-indicator">
         <div class="message-bubble loading-bubble">
-          <van-loading color="#ffeef6" />
+          <van-loading :color="'var(--theme-primary-color)'" />
         </div>
       </div>
     </div>
@@ -107,6 +107,17 @@ watch(messages, () => {
 </script>
 
 <style scoped lang="scss">
+::v-deep .el-dialog {
+  background: rgba(var(--theme-primary-color), 0.9) !important;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+::v-deep .el-overlay {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(3px);
+}
+
 .chat-container {
   height: 60vh;
   display: flex;
@@ -124,7 +135,7 @@ watch(messages, () => {
 
   /* 自定义滚动条 */
   scrollbar-width: thin;
-  scrollbar-color: #ff9eb5 #ffeef6;
+  scrollbar-color: var(--theme-primary-color) rgba(var(--theme-primary-color), 0.1);
 }
 
 .message-area::-webkit-scrollbar {
@@ -137,7 +148,7 @@ watch(messages, () => {
 }
 
 .message-area::-webkit-scrollbar-thumb {
-  background: #ff9eb5;
+  background: var(--theme-secondary-color);
   border-radius: 4px;
   border: 2px solid #ffeef6;
 }
@@ -208,9 +219,9 @@ watch(messages, () => {
 .message-input {
   border-radius: 25px;
   overflow: hidden;
-  border: 1px solid #ffd1e0;
+  border: 1px solid var(--theme-secondary-color);
   transition: all 0.3s ease;
-  background: #fff5f9;
+  background: linear-gradient(145deg, rgba(var(--theme-primary-color), 0.1), rgba(var(--theme-secondary-color), 0.05));
   box-shadow: 0 2px 8px rgba(255, 183, 213, 0.2);
 }
 
@@ -237,7 +248,7 @@ watch(messages, () => {
 
 .message-input :deep(.el-input-group__append) {
   border-radius: 0 25px 25px 0 !important;
-  background: linear-gradient(145deg, #ff9eb5, #ff7aa2);
+  background: linear-gradient(145deg, var(--theme-primary-color), var(--theme-accent-color));
   border: none;
   color: white;
   transition: all 0.3s ease;

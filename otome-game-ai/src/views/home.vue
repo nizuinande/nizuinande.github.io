@@ -1,15 +1,14 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
-import * as THREE from 'three'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useRouter } from 'vue-router'
 import ChatDialog from '@/components/ChatDialog.vue'
-// import { VideoPlay, VideoPause } from '@element-plus/icons-vue'
+import { initSeasonParticles } from '@/utils/seasonParticles'
 const isMobile = ref(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
-
 const store = useAppStore()
 const router = useRouter()
 const showChatDialog = ref(false)
+const currentTheme = computed(() => store.currentTheme)
 
 const handleTouchStart = (event) => {
   event.currentTarget.classList.add('touch-active')
@@ -31,25 +30,57 @@ const handleSelectCharacter = (char) => {
   }
 }
 
-let renderer, scene, camera, particles
 
 onMounted(() => {
   const updateIsMobile = () => {
     isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   }
+
+
+
+  // 初始化粒子系统
+
+  window.particleSystem = initSeasonParticles(document.getElementById('season-canvas'), {
+    theme: store.currentTheme,
+    particleType: currentTheme.value === 'spring' ? 'sakura' : 'leaf'
+  })
+
+
+
+  // 窗口resize处理
+  const handleResize = () => {
+    updateIsMobile()
+    if (window.particleSystem) {
+      window.particleSystem.resize()
+    }
+  }
+
   // 初始化时更新一次
   updateIsMobile()
 
   // 监听窗口大小变化
-  window.addEventListener('resize', updateIsMobile)
-
+  window.addEventListener('resize', handleResize)
   // 组件卸载时移除监听
   onUnmounted(() => {
     window.removeEventListener('resize', updateIsMobile)
+    if (window.particleSystem) {
+      window.particleSystem.destroy()
+    }
   })
-  initThree()
-  animate()
 })
+// 主题切换方法
+const changeTheme = (season) => {
+  store.updateTheme(season)
+  document.documentElement.setAttribute('data-theme', season)
+  if (window.particleSystem) {
+    window.particleSystem.destroy()
+    window.particleSystem = initSeasonParticles(document.getElementById('season-canvas'), {
+      theme: season,
+      particleType: season === 'spring' ? 'sakura' : 'leaf',
+      color: getComputedStyle(document.documentElement).getPropertyValue('--theme-particle-color')
+    })
+  }
+}
 const isPlaying = (char) => {
   return store.currentPlaying === char.name
 }
@@ -60,67 +91,42 @@ const toggleVoice = (char) => {
     voiceSample: char.voiceSample
   })
 }
-const initThree = () => {
-  scene = new THREE.Scene()
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-  renderer = new THREE.WebGLRenderer({ alpha: true })
-  renderer.setSize(window.innerWidth, window.innerHeight)
-  document.querySelector('#bg').appendChild(renderer.domElement)
 
-  // 添加窗口大小变化监听
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight
-    camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
-  })
 
-  const geometry = new THREE.BufferGeometry()
-  const vertices = []
-  const particleCount = 3000;
-  for (let i = 0; i < particleCount; i++) {
-    vertices.push(
-      Math.random() * 2000 - 1000,
-      Math.random() * 2000 - 1000,
-      Math.random() * 2000 - 1000
-    )
-  }
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
-  const material = new THREE.PointsMaterial({
-    size: 4.5,
-    color: 0xE8B4E6,
-    transparent: true,
-    opacity: 1
-  })
-  particles = new THREE.Points(geometry, material)
-  scene.add(particles)
-  camera.position.z = 1000
-}
 
-const animate = () => {
-  requestAnimationFrame(animate)
-  particles.rotation.x += 0.0001
-  particles.rotation.y += 0.0001
-  renderer.render(scene, camera)
-}
 </script>
 
 <template>
-  <el-main :theme="store.theme">
-    <div id="bg" class="background"></div>
+  <el-main>
+    <div class="theme-switcher">
+      <button v-for="season in ['spring', 'summer', 'autumn', 'winter']" :key="season" class="season-btn"
+        :class="{ active: currentTheme === season }" @click="changeTheme(season)"
+        :style="{ backgroundColor: `var(--theme-btn-color)` }">
+        {{ { spring: '🌸', summer: '🌿', autumn: '🍂', winter: '❄️' }[season] }}
+      </button>
+    </div>
+    <canvas id="season-canvas" style="position: fixed; top: 0; left: 0; z-index: 0; pointer-events: none;" />
     <el-container class="pa-8">
       <el-row justify="center" style="height:100%">
-        <el-col :span="24" :md="20" style="  display: flex;
-  align-items: center;
-  justify-content: center;">
+        <el-col :span="24" :md="20" style="  display: flex; align-items: center;justify-content: center;">
           <el-card class="glass-card rounded-xl pa-6">
             <el-row class="el-row--flex  flex-nowrap justify-space-between" :gutter="20">
               <el-col v-for="(char, i) in store.characters" :key="i" :span="6" class="mb-8 px-2">
-                <div class="character-card" @click="handleSelectCharacter(char)" @touchstart.passive="handleTouchStart"
-                  @touchend="handleTouchEnd">
+                <div :class="['character-card', currentTheme + '-theme']" @click="handleSelectCharacter(char)"
+                  @touchstart.passive="handleTouchStart" @touchend="handleTouchEnd">
                   <div class="character-info">
                     <h3 class="character-name">{{ char.name }}</h3>
                     <div class="tags">
-                      <el-tag type="info" effect="dark" size="large">{{ char.personality }}</el-tag>
+                      <el-tag :class="currentTheme + '-theme'" effect="dark" size="large"
+                        style="padding:8px 16px; border-radius:24px; font-family: 'Comic Sans MS', cursive;">
+                        <i :class="['iconfont', {
+        'icon-cherry-blossom': currentTheme === 'spring',
+        'icon-palm': currentTheme === 'summer',
+        'icon-maple-leaf': currentTheme === 'autumn',
+        'icon-snowflake': currentTheme === 'winter'
+      }]" />
+                        {{ char.personality }}
+                      </el-tag>
                     </div>
                   </div>
                   <img :src="char.image" style="width: 100%; object-fit: contain" />
@@ -160,9 +166,16 @@ const animate = () => {
 
 <style lang="scss">
 :root {
-  --primary-pink: #FFB7D5;
-  --secondary-purple: #D5B7FF;
-  --glass-bg: rgba(255, 255, 255, 0.15);
+  /* 季节主题变量已迁移到全局文件 */
+  --theme-border-glow-3: #FFFFFF;
+  cursor: var(--theme-cursor, auto);
+}
+
+.theme-switcher {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
 }
 
 .el-main {
@@ -223,9 +236,45 @@ const animate = () => {
 }
 
 .glass-card {
-  background: linear-gradient(135deg, rgba(255, 223, 240, 0.9) 0%, rgba(255, 255, 255, 0.8) 100%);
-  backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: transparent;
+  // background:
+  //   linear-gradient(135deg,
+  //     var(--theme-glass-gradient-from) 0%,
+  //     var(--theme-glass-gradient-to) 100%) !important;
+  // backdrop-filter: blur(24px) saturate(200%);
+  border: 0px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 0 !important;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg,
+        rgba(255, 255, 255, 0.1) 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        transparent 100%);
+    animation: glassFlow 3s linear infinite;
+    mask: linear-gradient(transparent 20%, white 50%, transparent 80%);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: conic-gradient(from 180deg at 50% 50%,
+        var(--theme-border-glow-1),
+        var(--theme-border-glow-2),
+        var(--theme-border-glow-3),
+        var(--theme-border-glow-2),
+        var(--theme-border-glow-1));
+    z-index: -1;
+    border-radius: inherit;
+    animation: borderRotate 3s linear infinite;
+    opacity: 0.6;
+  }
+
   box-shadow: 0 8px 32px rgba(231, 156, 210, 0.2);
 
   &::before {
@@ -269,14 +318,64 @@ const animate = () => {
   }
 }
 
+
 .character-card {
   position: relative;
   overflow: hidden;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  background: linear-gradient(145deg, rgba(255, 245, 250, 0.9) 0%, rgba(255, 230, 240, 0.8) 100%);
   border-radius: 16px;
   padding: 12px;
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  transition: all 0.3s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(45deg,
+        rgba(var(--theme-card-gradient-from-rgb), 0.1),
+        rgba(var(--theme-card-gradient-to-rgb), 0.1));
+    z-index: -1;
+    border-radius: 16px;
+  }
+
+  &[class$='-theme'] {
+    background: var(--theme-card-bg);
+    border: 2px solid var(--theme-card-border);
+    box-shadow: var(--theme-card-shadow);
+  }
+
+  &.spring-theme {
+    --theme-card-gradient-from: #FFB7D5;
+    --theme-card-gradient-to: #FFDEEB;
+    --theme-card-bg: linear-gradient(45deg, rgba(255, 245, 249, 0.8), rgba(255, 238, 244, 0.8));
+    --theme-card-border: rgba(255, 183, 213, 0.3);
+    --theme-card-shadow: 0 8px 32px rgba(255, 183, 213, 0.2);
+  }
+
+  &.summer-theme {
+    --theme-card-gradient-from: #B7E1FF;
+    --theme-card-gradient-to: #D4EDFF;
+    --theme-card-bg: linear-gradient(45deg, rgba(245, 252, 255, 0.8), rgba(232, 247, 255, 0.8));
+    --theme-card-border: rgba(183, 225, 255, 0.3);
+    --theme-card-shadow: 0 8px 32px rgba(183, 225, 255, 0.2);
+  }
+
+  &.autumn-theme {
+    --theme-card-gradient-from: #FFD7B7;
+    --theme-card-gradient-to: #FFE8D6;
+    --theme-card-bg: linear-gradient(45deg, rgba(255, 248, 245, 0.8), rgba(255, 243, 238, 0.8));
+    --theme-card-border: rgba(255, 215, 183, 0.3);
+    --theme-card-shadow: 0 8px 32px rgba(255, 215, 183, 0.2);
+  }
+
+  &.winter-theme {
+    --theme-card-gradient-from: #D5B7FF;
+    --theme-card-gradient-to: #E8D6FF;
+    --theme-card-bg: linear-gradient(45deg, rgba(251, 245, 255, 0.8), rgba(247, 240, 255, 0.8));
+    --theme-card-border: rgba(213, 183, 255, 0.3);
+    --theme-card-shadow: 0 8px 32px rgba(213, 183, 255, 0.2);
+  }
 
   &::before {
     content: '';
@@ -307,7 +406,7 @@ const animate = () => {
 
   &:hover {
     transform: translateY(-8px) scale(1.05) rotate(-2deg);
-    box-shadow: 0 16px 32px rgba(232, 63, 111, 0.2) !important;
+    box-shadow: var(--theme-card-shadow) !important;
 
     .tags {
       transform: translateY(-10px);
@@ -386,8 +485,91 @@ const animate = () => {
 }
 
 .el-tag {
-  background: linear-gradient(145deg, #ff9eb5, #ff7aa2) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  background: var(--theme-tag-bg) !important;
+  border: var(--theme-tag-border) !important;
+  box-shadow: var(--theme-tag-shadow);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg,
+        var(--theme-tag-glow-from) 0%,
+        var(--theme-tag-glow-to) 50%,
+        transparent 100%);
+    opacity: 0.3;
+    animation: tagGlow 2s infinite linear;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+  }
+}
+
+.spring-theme {
+  --theme-tag-bg: linear-gradient(145deg, #FFB7D5, #FF9EB5);
+  --theme-tag-border: 1px solid rgba(255, 214, 232, 0.5) !important;
+  --theme-tag-shadow: 0 4px 16px rgba(255, 183, 213, 0.3);
+  --theme-tag-glow-from: #FFE4F3;
+  --theme-tag-glow-to: #FFB7D5;
+}
+
+.summer-theme {
+  --theme-tag-bg: linear-gradient(145deg, #B7E1FF, #9ED2FF);
+  --theme-tag-border: 1px solid rgba(183, 225, 255, 0.5) !important;
+  --theme-tag-shadow: 0 4px 16px rgba(183, 225, 255, 0.3);
+  --theme-tag-glow-from: #E4F4FF;
+  --theme-tag-glow-to: #B7E1FF;
+}
+
+.autumn-theme {
+  --theme-tag-bg: linear-gradient(145deg, #FFD7B7, #FFC49E);
+  --theme-tag-border: 1px solid rgba(255, 215, 183, 0.5) !important;
+  --theme-tag-shadow: 0 4px 16px rgba(255, 215, 183, 0.3);
+  --theme-tag-glow-from: #FFEEDD;
+  --theme-tag-glow-to: #FFD7B7;
+}
+
+.winter-theme {
+  --theme-tag-bg: linear-gradient(145deg, #D5B7FF, #C49EFF);
+  --theme-tag-border: 1px solid rgba(213, 183, 255, 0.5) !important;
+  --theme-tag-shadow: 0 4px 16px rgba(213, 183, 255, 0.3);
+  --theme-tag-glow-from: #EEE4FF;
+  --theme-tag-glow-to: #D5B7FF;
+}
+
+@keyframes tagGlow {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes glassFlow {
+  0% {
+    transform: translateX(-100%) skew(-15deg);
+  }
+
+  100% {
+    transform: translateX(200%) skew(-15deg);
+  }
+}
+
+@keyframes borderRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .voice-icon {
@@ -427,7 +609,7 @@ const animate = () => {
   }
 
   .glass-card {
-    padding: 12px !important;
+    padding: 20px 12px 0 12px !important;
   }
 }
 
@@ -497,5 +679,13 @@ const animate = () => {
       animation-delay: 4s;
     }
   }
+}
+
+button {
+  border: 0px;
+}
+
+button:hover {
+  border: 0px;
 }
 </style>

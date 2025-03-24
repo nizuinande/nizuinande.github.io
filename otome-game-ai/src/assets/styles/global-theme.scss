@@ -1,0 +1,60 @@
+// 全局主题变量配置
+@mixin theme-variables($theme) {
+  $theme-map: (
+    'spring': (primary: #FFB7D5,
+      secondary: #FFDEEB,
+      particle: #FFE4F3,
+      gradient-from: #FFB7D5,
+      gradient-to: #FFDEEB,
+      glass-gradient-from: #FFB7D5,
+      glass-gradient-to: #FFDEEB),
+    'summer': (primary: #B7E1FF,
+      secondary: #D4EDFF,
+      particle: #E4F4FF,
+      gradient-from: #B7E1FF,
+      gradient-to: #D4EDFF,
+      glass-gradient-from: #B7E1FF,
+      glass-gradient-to: #D4EDFF),
+    'autumn': (primary: #FFD7B7,
+      secondary: #FFE8D6,
+      particle: #FFEEDD,
+      gradient-from: #FFD7B7,
+      gradient-to: #FFE8D6,
+      glass-gradient-from: #FFD7B7,
+      glass-gradient-to: #FFE8D6),
+    'winter': (primary: #D5B7FF,
+      secondary: #E8D6FF,
+      particle: #EEE4FF,
+      gradient-from: #D5B7FF,
+      gradient-to: #E8D6FF,
+      glass-gradient-from: #D5B7FF,
+      glass-gradient-to: #E8D6FF)) !global;
+
+  :root[data-theme="#{$theme}"] {
+    --theme-primary-color: #{map-get(map-get($theme-map, $theme), primary)};
+    --theme-secondary-color: #{map-get(map-get($theme-map, $theme), secondary)};
+    --theme-particle-color: #{map-get(map-get($theme-map, $theme), particle)};
+    --theme-gradient-from: #{map-get(map-get($theme-map, $theme), gradient-from)};
+    --theme-gradient-to: #{map-get(map-get($theme-map, $theme), gradient-to)};
+    --theme-glass-gradient-from: #{map-get(map-get($theme-map, $theme), glass-gradient-from)};
+    --theme-glass-gradient-to: #{map-get(map-get($theme-map, $theme), glass-gradient-to)};
+  }
+}
+
+// 基础主题变量
+:root {
+  --glass-gradient-primary: rgba(255, 223, 240, 0.9
+  );
+--glass-gradient-secondary: rgba(255, 255, 255, 0.8);
+--glass-highlight: rgba(255, 255, 255, 0.15);
+
+// 边框渐变效果
+--theme-border-glow-1: var(--theme-primary-color);
+--theme-border-glow-2: var(--theme-secondary-color);
+--theme-border-glow-3: #FFFFFF;
+}
+
+// 生成各季节主题变量
+@each $season in spring, summer, autumn, winter {
+  @include theme-variables($season);
+}
