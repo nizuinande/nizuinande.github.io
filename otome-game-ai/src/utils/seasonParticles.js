@@ -13,23 +13,49 @@ class SeasonParticles {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
     this.ctx.restore()
   }
+  preloadImages () {
+    Object.keys(this.images).forEach(key => {
+      const img = this.images[key].img
+      img.src = `/otomeGame/images/tree/${key}.svg`
+      img.onload = () => {
+        this.images[key].loaded = true
+        if (Object.values(this.images).every(i => i.loaded)) {
+          this.init()
+        }
+      }
+      img.onerror = () => {
+        console.error(`Failed to load image: ${key}.png`);
+        this.images[key].loaded = false;
+      }
+    })
+  }
 
+  showLoadingAnimation () {
+    // 绘制简单的加载指示器
+    this.ctx.save();
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = '20px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('Loading...', this.canvas.width / 2, this.canvas.height / 2);
+    this.ctx.restore();
+  }
 
   constructor(canvas, season = 'spring') {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')
     this.particles = []
     this.images = {
-      petal: new Image(),
-      leaf: new Image(),
-      snowflake: new Image(),
-      maple: new Image()
+      petal: { img: new Image(), loaded: false },
+      leaf: { img: new Image(), loaded: false },
+      snowflake: { img: new Image(), loaded: false },
+      maple: { img: new Image(), loaded: false }
     }
-    // 加载图片
-    this.images.petal.src = '/otomeGame/images/tree/petal.svg'
-    this.images.leaf.src = '/otomeGame/images/tree/leaf.svg'
-    this.images.snowflake.src = '/otomeGame/images/tree/snowflake.svg'
-    this.images.maple.src = '/otomeGame/images/tree/maple.svg'
+    // 预加载图片
+    this.preloadImages()
+    // 显示加载动画
+    this.showLoadingAnimation()
+
+
 
     this.seasonConfig = {
       spring: {
@@ -37,7 +63,7 @@ class SeasonParticles {
         skyGradient: { start: '#87CEEB', end: '#E0F6FF' },
         shape: 'petal',
         density: 0.7,
-        motion: { angle: -30, speed: 2, turbulence: 0.3 },
+        motion: { angle: -30, speed: 1, turbulence: 0.3 },
         effects: ['bloom']
       },
       summer: {
@@ -45,7 +71,7 @@ class SeasonParticles {
         skyGradient: { start: '#00BFFF', end: '#87CEFA' },
         shape: 'leaf',
         density: 0.5,
-        motion: { angle: 0, speed: 1.5, turbulence: 0.5 },
+        motion: { angle: 0, speed: 0.8, turbulence: 0.5 },
         effects: ['sunbeam']
       },
       autumn: {
@@ -53,7 +79,7 @@ class SeasonParticles {
         skyGradient: { start: '#FFA500', end: '#FFDAB9' },
         shape: 'maple',
         density: 0.6,
-        motion: { angle: 45, speed: 1.8, turbulence: 0.4 },
+        motion: { angle: 45, speed: 1, turbulence: 0.4 },
         effects: ['golden']
       },
       winter: {
@@ -61,7 +87,7 @@ class SeasonParticles {
         skyGradient: { start: '#F0F8FF', end: '#E0FFFF' },
         shape: 'snowflake',
         density: 0.8,
-        motion: { angle: 90, speed: 1.2, turbulence: 0.2 },
+        motion: { angle: 90, speed: 0.6, turbulence: 0.2 },
         effects: ['sparkle']
       }
     }
@@ -75,10 +101,14 @@ class SeasonParticles {
     this.createParticles()
     this.animate()
     window.addEventListener('resize', () => this.resize())
+    this.lastFrameTime = Date.now()
+    this.frameCount = 0
+    this.fps = 60
+    this.maxParticles = 300
   }
 
   createParticles () {
-    const MAX_STATIC_PARTICLES = 2000;
+    const MAX_STATIC_PARTICLES = 20;
     const activeParticles = this.particles.filter(p => !p.isStatic).length;
     const aspectRatio = this.canvas.width / this.canvas.height;
     const count = Math.min(
@@ -120,9 +150,31 @@ class SeasonParticles {
     }
 
     const img = this.images[this.config.shape];
-    const size = particle.size * 2;
-    this.ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    if (!img || !img.loaded) {
+      this.ctx.restore();
+      return;
+    }
 
+    // 根据粒子大小应用LOD机制
+    const lodScale = Math.min(1, particle.size / 10);
+    const size = particle.size * 2 * lodScale;
+
+    // 使用离屏canvas缓存图像
+    if (!this.imageCache) {
+      this.imageCache = {};
+    }
+    if (!this.imageCache[this.config.shape]) {
+      const cacheCanvas = document.createElement('canvas');
+      const cacheCtx = cacheCanvas.getContext('2d');
+      const imgSize = 64; // 缓存图像大小
+      cacheCanvas.width = imgSize;
+      cacheCanvas.height = imgSize;
+      cacheCtx.drawImage(img.img, 0, 0, imgSize, imgSize);
+      this.imageCache[this.config.shape] = cacheCanvas;
+    }
+
+    // 使用缓存的图像进行绘制
+    this.ctx.drawImage(this.imageCache[this.config.shape], -size / 2, -size / 2, size, size);
     this.ctx.restore();
   }
 
@@ -201,8 +253,8 @@ class SeasonParticles {
   updateParticles () {
     this.particles.forEach(particle => {
       if (!particle.isStatic) {
-        particle.x += Math.cos(particle.angle) * particle.speed
-        particle.y += Math.sin(particle.angle) * particle.speed
+        particle.x += Math.cos(particle.angle) * particle.speed * 0.5
+        particle.y += Math.sin(particle.angle) * particle.speed * 0.5
         particle.rotation += 0.02
         particle.angle += (Math.random() - 0.5) * this.config.motion.turbulence
 
@@ -226,6 +278,19 @@ class SeasonParticles {
   }
 
   animate () {
+    // 检查canvas上下文是否存在
+    if (!this.ctx) return;
+
+    // 计算FPS
+    const now = Date.now()
+    this.frameCount++
+    if (now >= this.lastFrameTime + 1000) {
+      this.fps = this.frameCount
+      this.frameCount = 0
+      this.lastFrameTime = now
+      this.adjustParticleCount()
+    }
+
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
     // 绘制天空背景
@@ -241,6 +306,15 @@ class SeasonParticles {
     this.animationFrameId = requestAnimationFrame(() => this.animate())
   }
 
+  adjustParticleCount () {
+    // 根据FPS动态调整粒子数量
+    if (this.fps < 30) {
+      this.maxParticles = Math.max(500, this.maxParticles - 100)
+    } else if (this.fps > 50 && this.maxParticles < 2000) {
+      this.maxParticles = Math.min(2000, this.maxParticles + 100)
+    }
+  }
+
   setSeason (season) {
     this.config = this.seasonConfig[season] || this.seasonConfig.spring
     this.particles = []
@@ -248,19 +322,46 @@ class SeasonParticles {
   }
 
   resize () {
+    if (!this.canvas || !this.ctx) return;
     this.canvas.width = window.innerWidth
     this.canvas.height = window.innerHeight
+    // 限制粒子数量不超过最大限制
+    const maxParticles = Math.floor((this.canvas.width * this.canvas.height) / 10000);
+    if (this.particles.length > maxParticles) {
+      this.particles.splice(maxParticles);
+    }
+    // 更新所有静态粒子的位置
+    this.particles.forEach(particle => {
+      if (particle.isStatic) {
+        const groundLevel = this.canvas.height - particle.size * 2;
+        particle.y = Math.min(groundLevel, this.canvas.height - particle.size * (0.5 + Math.random()));
+        particle.stackOrder = Math.min(
+          Math.floor((this.canvas.height - particle.y) / 5),
+          Math.floor(this.canvas.height / 15)
+        );
+        particle.y -= particle.stackOrder * 0.8;
+      }
+    });
     this.createParticles()
   }
 
   destroy () {
-    window.removeEventListener('resize', this.handleResize)
+    window.removeEventListener('resize', this.resize)
     cancelAnimationFrame(this.animationFrameId)
     this.animationFrameId = null
     this.particles = []
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     this.canvas.width = 1
     this.canvas.height = 1
+    this.imageCache = null
+    Object.values(this.images).forEach(img => {
+      img.img.src = ''
+      img.img.onload = null
+      img.img.onerror = null
+    })
+    this.images = null
+    this.ctx = null
+    this.canvas = null
   }
 }
 

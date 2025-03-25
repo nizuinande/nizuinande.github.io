@@ -21,11 +21,13 @@ api.interceptors.request.use(config => {
 
 export const chatCompletion = async ({ character, message }) => {
   try {
+    console.log(character);
+
     const response = await api.post('/chat/completions', {
-      model: 'deepseek-chat',
+      model: 'deepseek-reasoner',
       messages: [{
         role: 'system',
-        content: `你正在扮演${character}，请保持角色设定进行对话`
+        content: `你正在扮演${character.name}，人物背景为${character.background}，性格特点为${character.personalityTraits},特殊技能是${character.specialSkills.join(',')}。请保持角色设定进行对话`
       }, {
         role: 'user',
         content: message

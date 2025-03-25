@@ -89,7 +89,7 @@ const sendMessage = async () => {
   // AI回复
   try {
     const response = await chatCompletion({
-      character: character.value.name,
+      character: character.value,
       message: userMessage
     })
 
@@ -266,11 +266,12 @@ watch(messages, () => {
   min-width: 60px;
   max-width: 90%;
   z-index: 1;
+  word-break: break-word;
 
   @media (max-width: 768px) {
     max-width: 95%;
-    padding: 10px 15px;
-    margin-bottom: 10px;
+    padding: 12px 18px;
+    margin-bottom: 12px;
   }
 
   width: fit-content;
@@ -309,10 +310,13 @@ watch(messages, () => {
 
 .message-content {
   font-size: 14px;
+  white-space: normal;
+  word-wrap: break-word;
 
   @media (max-width: 768px) {
     font-size: 16px;
     line-height: 1.6;
+    max-width: 95%;
   }
 
   line-height: 1.5;

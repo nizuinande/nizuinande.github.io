@@ -55,7 +55,7 @@ const sendMessage = async () => {
   // AI回复
   try {
     const response = await chatCompletion({
-      character: props.character.name,
+      character: props.character,
       message: userMessage
     })
 

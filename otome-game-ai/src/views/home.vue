@@ -1,4 +1,6 @@
 <script setup>
+import videoPause from '@/assets/images/video-pause.svg'
+import videoplay from '@/assets/images/video-play.svg'
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useRouter } from 'vue-router'
@@ -6,6 +8,8 @@ import ChatDialog from '@/components/ChatDialog.vue'
 import { initSeasonParticles } from '@/utils/seasonParticles'
 const isMobile = ref(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
 const store = useAppStore()
+console.log(store, 'storestorestorestorestorestorestorestorestorestorestore');
+
 const router = useRouter()
 const showChatDialog = ref(false)
 const currentTheme = computed(() => store.currentTheme)
@@ -32,6 +36,7 @@ const handleSelectCharacter = (char) => {
 
 
 onMounted(() => {
+
   const updateIsMobile = () => {
     isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   }
@@ -45,6 +50,7 @@ onMounted(() => {
     particleType: currentTheme.value === 'spring' ? 'sakura' : 'leaf'
   })
 
+  console.log(window.particleSystem);
 
 
   // 窗口resize处理
@@ -68,6 +74,7 @@ onMounted(() => {
     }
   })
 })
+
 // 主题切换方法
 const changeTheme = (season) => {
   store.updateTheme(season)
@@ -75,12 +82,13 @@ const changeTheme = (season) => {
   if (window.particleSystem) {
     window.particleSystem.destroy()
     window.particleSystem = initSeasonParticles(document.getElementById('season-canvas'), {
-      theme: season,
-      particleType: season === 'spring' ? 'sakura' : 'leaf',
+      theme: store.currentTheme,
+      particleType: store.currentTheme === 'spring' ? 'sakura' : 'leaf',
       color: getComputedStyle(document.documentElement).getPropertyValue('--theme-particle-color')
     })
   }
 }
+
 const isPlaying = (char) => {
   return store.currentPlaying === char.name
 }
@@ -112,8 +120,8 @@ const toggleVoice = (char) => {
           <el-card class="glass-card rounded-xl pa-6">
             <el-row class="el-row--flex  flex-nowrap justify-space-between" :gutter="20">
               <el-col v-for="(char, i) in store.characters" :key="i" :span="6" class="mb-8 px-2">
-                <div :class="['character-card', currentTheme + '-theme']" @click="handleSelectCharacter(char)"
-                  @touchstart.passive="handleTouchStart" @touchend="handleTouchEnd">
+                <div :class="['character-card', currentTheme + '-theme']" @touchstart.passive="handleTouchStart"
+                  @touchend="handleTouchEnd">
                   <div class="character-info">
                     <h3 class="character-name">{{ char.name }}</h3>
                     <div class="tags">
@@ -129,10 +137,11 @@ const toggleVoice = (char) => {
                       </el-tag>
                     </div>
                   </div>
-                  <img :src="char.image" style="width: 100%; object-fit: contain" />
+                  <img @click="handleSelectCharacter(char)" :src="char.image"
+                    style="width: 100%; object-fit: contain" />
                   <el-icon class="voice-icon" :size="36" :color="isPlaying(char) ? '#FF4081' : '#E91E63'"
                     @click="toggleVoice(char)">
-                    <component :is="isPlaying(char) ? 'VideoPause' : 'VideoPlay'" />
+                    <img :src="isPlaying(char) ? videoPause : videoplay" />
                   </el-icon>
                 </div>
               </el-col>
@@ -143,17 +152,6 @@ const toggleVoice = (char) => {
     </el-container>
     <el-dialog v-model="showChatDialog" :title="store.selectedCharacter ? store.selectedCharacter.name : '对话'"
       width="60%" custom-class="chat-dialog" :show-close="false">
-      <!-- <template #header="{ close, titleId, titleClass }">
-        <div class="my-header">
-          <h4 :id="titleId" :class="titleClass">{{ store.selectedCharacter ? store.selectedCharacter.name : '对话' }}</h4>
-          <el-button type="danger" @click="close">
-            <el-icon class="el-icon--left">
-              <CircleCloseFilled />
-            </el-icon>
-            Close
-          </el-button>
-        </div>
-      </template> -->
       <div class="sakura"></div>
       <div class="sakura"></div>
       <div class="sakura"></div>
@@ -168,6 +166,8 @@ const toggleVoice = (char) => {
 :root {
   /* 季节主题变量已迁移到全局文件 */
   --theme-border-glow-3: #FFFFFF;
+  --theme-play-btn-color: #FF4081;
+  --theme-pause-btn-color: #E91E63;
   cursor: var(--theme-cursor, auto);
 }
 
@@ -346,6 +346,8 @@ const toggleVoice = (char) => {
   }
 
   &.spring-theme {
+    --theme-play-btn-color: #FFB7D5;
+    --theme-pause-btn-color: #FF9EB5;
     --theme-card-gradient-from: #FFB7D5;
     --theme-card-gradient-to: #FFDEEB;
     --theme-card-bg: linear-gradient(45deg, rgba(255, 245, 249, 0.8), rgba(255, 238, 244, 0.8));
@@ -354,6 +356,8 @@ const toggleVoice = (char) => {
   }
 
   &.summer-theme {
+    --theme-play-btn-color: #B7E1FF;
+    --theme-pause-btn-color: #9ED2FF;
     --theme-card-gradient-from: #B7E1FF;
     --theme-card-gradient-to: #D4EDFF;
     --theme-card-bg: linear-gradient(45deg, rgba(245, 252, 255, 0.8), rgba(232, 247, 255, 0.8));
@@ -362,6 +366,8 @@ const toggleVoice = (char) => {
   }
 
   &.autumn-theme {
+    --theme-play-btn-color: #FFD7B7;
+    --theme-pause-btn-color: #FFC49E;
     --theme-card-gradient-from: #FFD7B7;
     --theme-card-gradient-to: #FFE8D6;
     --theme-card-bg: linear-gradient(45deg, rgba(255, 248, 245, 0.8), rgba(255, 243, 238, 0.8));
@@ -370,6 +376,8 @@ const toggleVoice = (char) => {
   }
 
   &.winter-theme {
+    --theme-play-btn-color: #D5B7FF;
+    --theme-pause-btn-color: #C49EFF;
     --theme-card-gradient-from: #D5B7FF;
     --theme-card-gradient-to: #E8D6FF;
     --theme-card-bg: linear-gradient(45deg, rgba(251, 245, 255, 0.8), rgba(247, 240, 255, 0.8));
@@ -511,6 +519,8 @@ const toggleVoice = (char) => {
 }
 
 .spring-theme {
+  --theme-play-btn-color: #FFB7D5;
+  --theme-pause-btn-color: #FF9EB5;
   --theme-tag-bg: linear-gradient(145deg, #FFB7D5, #FF9EB5);
   --theme-tag-border: 1px solid rgba(255, 214, 232, 0.5) !important;
   --theme-tag-shadow: 0 4px 16px rgba(255, 183, 213, 0.3);
@@ -519,6 +529,8 @@ const toggleVoice = (char) => {
 }
 
 .summer-theme {
+  --theme-play-btn-color: #B7E1FF;
+  --theme-pause-btn-color: #9ED2FF;
   --theme-tag-bg: linear-gradient(145deg, #B7E1FF, #9ED2FF);
   --theme-tag-border: 1px solid rgba(183, 225, 255, 0.5) !important;
   --theme-tag-shadow: 0 4px 16px rgba(183, 225, 255, 0.3);
@@ -527,6 +539,8 @@ const toggleVoice = (char) => {
 }
 
 .autumn-theme {
+  --theme-play-btn-color: #FFD7B7;
+  --theme-pause-btn-color: #FFC49E;
   --theme-tag-bg: linear-gradient(145deg, #FFD7B7, #FFC49E);
   --theme-tag-border: 1px solid rgba(255, 215, 183, 0.5) !important;
   --theme-tag-shadow: 0 4px 16px rgba(255, 215, 183, 0.3);
@@ -535,6 +549,8 @@ const toggleVoice = (char) => {
 }
 
 .winter-theme {
+  --theme-play-btn-color: #D5B7FF;
+  --theme-pause-btn-color: #C49EFF;
   --theme-tag-bg: linear-gradient(145deg, #D5B7FF, #C49EFF);
   --theme-tag-border: 1px solid rgba(213, 183, 255, 0.5) !important;
   --theme-tag-shadow: 0 4px 16px rgba(213, 183, 255, 0.3);
@@ -576,6 +592,8 @@ const toggleVoice = (char) => {
   transition: all 0.3s ease;
 
   &:active {
+    background-color: var(--theme-play-btn-color);
+    box-shadow: 0 0 8px var(--theme-pause-btn-color);
     transform: scale(1.2);
     filter: drop-shadow(0 0 8px rgba(232, 63, 111, 0.8));
   }

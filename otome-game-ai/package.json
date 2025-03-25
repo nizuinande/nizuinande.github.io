@@ -11,6 +11,7 @@
   "dependencies": {
     "@vueuse/sound": "^2.1.3",
     "axios": "^1.8.4",
+    "ollama": "^0.5.14",
     "pinia": "^3.0.1",
     "three": "^0.174.0",
     "vant": "^4.9.18",
